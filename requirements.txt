@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+openai
+together
+python-dotenv
+langchain
+langchain-community
+langchain_huggingface
+faiss-cpu
+python-multipart
+pypdf
+mysql-connector-python
+alembic

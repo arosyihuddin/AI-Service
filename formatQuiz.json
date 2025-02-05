@@ -1,0 +1,27 @@
+{
+	"lang": "id",
+	"quiz_id": 54,
+	"questions": [
+		{
+			"title": "Apa yang dimaksud dengan materi dalam ilmu fisika?",
+			"type": "descriptive",
+			"descriptive_correct_answer": "Materi dalam ilmu fisika adalah segala sesuatu yang memiliki massa dan menempati ruang dengan memiliki volume.",
+			"grade": 50,
+			"answers": []
+		},
+		{
+			"title": "Jelaskan bagaimana partikel subatom membentuk materi!",
+			"type": "descriptive",
+			"descriptive_correct_answer": "Partikel subatom seperti proton, neutron, dan elektron membentuk inti atom dan awan elektron yang mengorbit, sehingga membentuk materi.",
+			"grade": 30,
+			"answers": []
+		},
+		{
+			"title": "Sebutkan beberapa keadaan (fase) materi yang umum dijumpai!",
+			"type": "descriptive",
+			"descriptive_correct_answer": "Beberapa keadaan (fase) materi yang umum dijumpai adalah padat, cair, dan gas.",
+			"grade": 20,
+			"answers": []
+		}
+	]
+}
