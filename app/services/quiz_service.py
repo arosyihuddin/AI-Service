@@ -7,6 +7,9 @@ from app.db.database_vector import get_db
 from app.services.llm_service import llm
 import requests
 from app.core.config import settings
+from app.services.document_service import DocumentService
+from app.schemas.document import DocumentSearchRequest
+import json
 
 QUESTION_RULES = {
     "multiple": multiple_rules,
@@ -22,12 +25,14 @@ class QuizService:
             raise HTTPException(500, "Database not initialized")
         
         # Mencari materi yang relevan dengan kata kunci
-        question = f"carikan semua materi yang berkaitan dengan {request.keywords}"
-        result = db.similarity_search(question, k=settings.k_quiz, filter={"parent_id": {"$in": request.material_ids}})
+        question = f"carikan materi yang berkaitan dengan {request.topics}"
+        req = DocumentSearchRequest(material_ids=request.material_ids, topics=question, k=settings.k_quiz)
+        context = await DocumentService.get_material_context(req)
+        log.info(f"Conentext: {context[:50]}...")
+        if context == '':
+            raise HTTPException(404, f"Gagal Mencari Materi dengan topik {request.topics} Gunakan topik lain")
         
-        # Membuat konteks untuk pertanyaan
-        context = "".join(i.page_content for i in result)
-        question_with_context = f"question: buatkan {request.total_soal} soal dengan quiz id nya {request.quiz_id} terkait dengan materi berikut. materi: {context}"
+        question_with_context = f"question: buatkan {request.total_soal} soal dengan quiz id nya {request.quiz_id}, topik yang ingin dibuat adalah {request.topics}, terkait dengan materi berikut. materi: {context}"
         
         # Menentukan fungsi aturan berdasarkan jenis soal
         rules_function = QUESTION_RULES.get(request.type_soal)
@@ -50,7 +55,15 @@ class QuizService:
             
             # Memeriksa status respons
             if response.get("status") == 200:
-                return {"success":True, "status":200, "message":"Success Generate Quiz"}
+                if request.show_quiz:
+                    try:
+                        quiz = json.loads(response_model)
+                    except Exception as e:
+                        log.error(f"Failed to parse JSON for Show Quiz: {str(e)}")
+                        raise e
+                    return {"success":True, "status":200, "message":"Success Generate Quiz", "quiz": quiz["questions"]}
+                else:
+                    return {"success":True, "status":200, "message":"Success Generate Quiz"}
             else:
                 raise HTTPException(status_code=400, detail="Failed Save Quiz")
         except HTTPException as e:

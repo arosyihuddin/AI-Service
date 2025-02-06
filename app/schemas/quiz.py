@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 # Request schema for generating a quiz
 class QuizGenerateRequest(BaseModel):
@@ -7,4 +7,5 @@ class QuizGenerateRequest(BaseModel):
     total_soal: int = 5
     material_ids: List[int]
     quiz_id: int
-    keywords: str
+    topics: str
+    show_quiz: Optional[bool] = False

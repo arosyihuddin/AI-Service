@@ -5,9 +5,19 @@ def multiple_rules(question_with_context):
             2. Gunakan bahasa Indonesia (lang: "id")
             3. Acak posisi jawaban benar (tidak boleh hanya di A)
             4. Format jawaban: 4 opsi dengan 1 benar
-            5. Contoh struktur valid (dalam bahasa Indonesia): '{"lang": "id", "quiz_id": 1, "questions": [{"title": "Apa ibukota Indonesia?","type": "multiple","descriptive_correct_answer": null,"grade": 20,"answers": [{"title": "Jakarta","correct": 1},{"title": "Bandung","correct": 0},{"title": "Surabaya","correct": 0},{"title": "Medan","correct": 0}]}]}'
+            5. Contoh struktur valid (dalam bahasa Indonesia): '{"lang": "id", "quiz_id": 1, "questions": [{"title": "Pertanyaan disini","type": "multiple","descriptive_correct_answer": null,"grade": 20,"answers": [{"title": "Jawaban A","correct": 1},{"title": "Jawaban B","correct": 0},{"title": "Jawaban C","correct": 0},{"title": "Jawaban D","correct": 0}]}]}'
             6. Pastikan valid JSON dan tidak ada karakter ilegal
-            7. Output HANYA JSON tanpa komentar/markdown"""
+            7. Output HANYA JSON tanpa komentar/markdown
+            8. Setiap soal harus merujuk ke informasi spesifik dalam dokumen
+            9. Hasilkan soal berdasarkan materi yang diberikan.
+            10. Pertanyaan harus menguji pemahaman tentang aspek:
+                - Pengetahuan faktual
+                - Pemahaman konseptual
+                - Kemampuan aplikasi
+                - Analisis
+                - Evaluasi
+                - Kreativitas
+            """
         },
         {"role": "user", "content": question_with_context}
     ]
@@ -24,7 +34,17 @@ def descriptive_rules(question_with_context):
                 - Type selalu "descriptive" 
                 - Jawaban model dalam descriptive_correct_answer (minimal 2 kalimat)
                 - Valid JSON tanpa karakter khusus
-            6. Output HANYA JSON tanpa komentar/markdown"""
+            6. Output HANYA JSON tanpa komentar/markdown
+            8. Setiap soal harus merujuk ke informasi spesifik dalam dokumen
+            9. Hasilkan soal berdasarkan materi yang diberikan.
+            10. Pertanyaan harus menguji pemahaman tentang aspek:
+                - Pengetahuan faktual
+                - Pemahaman konseptual
+                - Kemampuan aplikasi
+                - Analisis
+                - Evaluasi
+                - Kreativitas
+            """
         },
         {"role": "user", "content": question_with_context}
     ]

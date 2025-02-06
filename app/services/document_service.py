@@ -107,14 +107,14 @@ class DocumentService:
             raise HTTPException(500, "Database not initialized")
         try:
             query = ''
-            if request.keywords is not None:
-                query = f"carikan semua materi yang berkaitan dengan {request.keywords}"
+            if request.topics is not None:
+                query = f"carikan semua materi yang berkaitan dengan {request.topics}"
             else:
                 query  = request.query
-                
             isFilter = {"parent_id": {"$in": request.material_ids}} if request.material_ids is not None else None
             result = db.similarity_search(query, k=request.k, filter=isFilter)
-            return result
+            sorted_result = sorted(result, key=lambda x: x.metadata["chunk_id"])
+            return sorted_result
         except Exception as e:
             raise HTTPException(500, f"Gagal mencari dokumen: {str(e)}")
         
@@ -126,6 +126,18 @@ class DocumentService:
         try:
             result = await DocumentService.search_document(request)
             context = "".join([f'-[SOURCE: {doc.metadata["course_name"]}, Modul: {doc.metadata["module"]}, Halaman: {doc.metadata["page"]}, Link: {doc.metadata["source"]}]\n{doc.page_content}\n' for doc in result])
-            return context
+            return context.strip()
+        except Exception as e:
+            raise HTTPException(500, f"Gagal mencari dokumen context: {str(e)}")
+    
+    @staticmethod
+    async def get_material_context(request: DocumentSearchRequest):
+        db = get_db()
+        if db is None:
+            raise HTTPException(500, "Database not initialized")
+        try:
+            result = await DocumentService.search_document(request)
+            context = "".join([chunk.page_content for chunk in result])
+            return context.strip()
         except Exception as e:
             raise HTTPException(500, f"Gagal mencari dokumen context: {str(e)}")

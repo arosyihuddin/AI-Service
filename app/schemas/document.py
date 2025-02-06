@@ -24,5 +24,5 @@ class DocumentDeleteRequest(BaseModel):
 class DocumentSearchRequest(BaseModel):
     material_ids: Optional[List[int]] = None
     query: Optional[str] = None
-    keywords: Optional[str] = None
+    topics: Optional[str] = None
     k: int

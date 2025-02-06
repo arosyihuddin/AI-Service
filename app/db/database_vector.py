@@ -67,19 +67,19 @@ async def insert(file_path: str, material_id: int, source: str, course_name: str
         for page in pages:
             clean_content = re.sub(r'[\t\n]+', ' ', page.page_content)
             chunks = text_splitter.split_text(clean_content)
-            for chunk in chunks:
+            for index, chunk in enumerate(chunks):
                 # Generate a unique document ID
                 doc_id = str(uuid4())
                 
                 # Define metadata for the document
                 metadata = {
                     "parent_id": material_id,
-                    "chunk_id": doc_id,
+                    "chunk_id": index,
                     "course_name": course_name,
                     "description": description,
                     "module": module,
                     "source": source,
-                    "page": page.metadata.get("page", 0),
+                    "page": page.metadata.get("page", 1),
                 }
                 
                 # Add document to the list
