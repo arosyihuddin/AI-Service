@@ -1,6 +1,6 @@
 # app/models/chat.py
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
-from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy.dialects.mysql import LONGTEXT, JSON
 from sqlalchemy.sql import func
 from app.core.database import Base
 import uuid
@@ -15,6 +15,7 @@ class ChatSession(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     session_name = Column(String(100))
     user_id = Column(Integer(), ForeignKey("users.id"), index=True)
+    material_ids = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)

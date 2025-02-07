@@ -10,46 +10,51 @@ from app.services.llm_service import llm
 import uuid
 from app.services.document_service import DocumentService
 from app.schemas.document import DocumentSearchRequest
-from app.utils.rules import PROMPT_CHAT_SYSTEM
+from app.utils.rules import prompt_chat_system, promt_classification_system
 from datetime import datetime
 
 class ChatService:
     def __init__(self):
         self.client = Together(api_key=settings.together_api_key)
         self.MAX_HISTORY = settings.max_history
-        self.system_message_content = PROMPT_CHAT_SYSTEM
     
-    async def process_chat(self, db: Session, user_input: str, material_ids: list[int], user_id: int, user_name: str, session_id: Optional[str] = None):
+    async def process_chat(self, db: Session, user_input: str, user_id: int, user_name: str, is_different: bool, material_ids: list[int] = None, session_id: Optional[str] = None):
         try:
             # Validasi atau generate session ID
             if session_id and not await self._validate_session(db, session_id):
                 raise ValueError("Session ID tidak valid")
             session_name = ''    
             if not session_id:
-                session_id, session_name = session_id or await self._create_new_session(user_input, user_id, user_name, db)
+                prompt_system = prompt_chat_system(user_name)
+                session_id, session_name = session_id or await self._create_new_session(user_input, user_id, user_name, prompt_system, material_ids, db)
             else:
                 session_name = await self._get_session_name(db, session_id)
-            
-            # Retrieval material
-            req = DocumentSearchRequest(material_ids=material_ids, query=user_input, k=settings.k_chat)
-            context = await DocumentService.search_document_context(req)
             
             # Simpan pesan user
             await self._save_message(db, session_id, "user", user_input)
             
+            # Update Material IDS
+            if is_different:
+                await self._update_material_ids(db, session_id, material_ids)
+                
             # Dapatkan history
             messages = await self._get_messages(db, session_id)
             
-            # Merge Message With Context
-            new_user_input = self._merge_messages_context(user_input, context)
-            
+            if material_ids is not None and len(material_ids) > 0:
+                # Retrieval material
+                req = DocumentSearchRequest(material_ids=material_ids, query=user_input, k=settings.k_chat)
+                context = await DocumentService.search_document_context(req)
+                log.warn(f"Context: {context[:100]}...")
+
+                # Merge Message With Context
+                user_input = self._merge_messages_context(user_input, context)
+                
+            log.warn(f"User input: {user_input[:200]}...")
             merge_history_user_input = messages.copy()
-            merge_history_user_input.append({"role": "user", "content": new_user_input})
+            merge_history_user_input.append({"role": "user", "content": user_input})
             
             # Generate response AI
             ai_response = await self._generate_ai_response(merge_history_user_input)
-            
-            # Simpan response AI
             await self._save_message(db, session_id, "assistant", ai_response)
             
             # Bersihkan history jika perlu
@@ -95,20 +100,20 @@ class ChatService:
     async def _validate_user(self, db: Session, user_id: int) -> bool:
         return db.query(Users).filter_by(id=user_id).first() is not None
 
-    async def _create_new_session(self, session_name: str, user_id: int, user_name: str,  db: Session) -> str:
+    async def _create_new_session(self, session_name: str, user_id: int, user_name: str, promt_system: str, material_ids: list[int], db: Session) -> str:
         if not await self._validate_user(db, user_id):
             db.add(Users(id=user_id, user_name=user_name))
             db.commit()
         new_session_name = ' '.join(i for i in session_name.split()[:3])
-        new_session = ChatSession(id=str(uuid.uuid4()), user_id=user_id, session_name=new_session_name)
+        new_session = ChatSession(id=str(uuid.uuid4()), user_id=user_id, session_name=new_session_name, material_ids=material_ids)
         db.add(new_session)
         db.commit()
         
         # Tambahkan pesan sistem
-        await self._save_message(db, new_session.id, "system", self.system_message_content)
+        await self._save_message(db, new_session.id, "system", promt_system)
         return new_session.id, new_session_name
 
-    async def _save_message(self, db: Session, session_id: str, role: str, content: str, context: str = None):
+    async def _save_message(self, db: Session, session_id: str, role: str, content: str):
         new_message = ChatMessage(
             session_id=session_id,
             role=role,
@@ -134,6 +139,10 @@ class ChatService:
         if not session:
             raise ValueError("Invalid session ID")
         return session.session_name
+    
+    async def _update_material_ids(self, db: Session, session_id: str, material_ids: list[int]):
+        db.query(ChatSession).filter(ChatSession.id == session_id).update({"material_ids": material_ids})
+        db.commit()
 
     async def _trim_history(self, db: Session, session_id: str):
         # Hitung total messages
@@ -168,5 +177,10 @@ class ChatService:
             log.error(f"LLM Error: {str(e)}")
             raise RuntimeError("Gagal menghasilkan respons dari AI")
     
+    # async def _get_materials(self, db: Session, material_ids: list[int]) -> List[Document]:
+    #     return db.query(ChatSession).filter(Document.id.in_(material_ids)).all()
+    
     def _merge_messages_context(self, messages: str, context: str) -> str:
-        return f"Jawab pertanyaan ini : {messages}\nGunakan hanya context di bawah ini:\n{context}\nFormat referensi: [Dikutip dari: {{course}}, Modul {{module}}, Halaman {{page}}]({{link}})"
+        return f"Jawab pertanyaan ini : {messages}\nGunakan hanya context di bawah ini:\n{context}"
+    
+    

@@ -17,7 +17,8 @@ async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
             material_ids=request.material_ids,
             session_id=request.session_id,
             user_id=request.user_id,
-            user_name=request.user_name
+            user_name=request.user_name,
+            is_different=request.is_different
         )
         
         return ChatResponse(

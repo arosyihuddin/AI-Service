@@ -83,7 +83,7 @@ async def insert(file_path: str, material_id: int, source: str, course_name: str
                     "description": description,
                     "module": module,
                     "source": source,
-                    "page": page.metadata.get("page", 1),
+                    "page": page.metadata.get("page", 0)+1,
                 }
                 
                 # Add document to the list
