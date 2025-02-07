@@ -177,10 +177,7 @@ class ChatService:
             log.error(f"LLM Error: {str(e)}")
             raise RuntimeError("Gagal menghasilkan respons dari AI")
     
-    # async def _get_materials(self, db: Session, material_ids: list[int]) -> List[Document]:
-    #     return db.query(ChatSession).filter(Document.id.in_(material_ids)).all()
-    
     def _merge_messages_context(self, messages: str, context: str) -> str:
-        return f"Jawab pertanyaan ini : {messages}\nGunakan hanya context di bawah ini:\n{context}"
+        return f"Jawab pertanyaan ini : {messages}\ncontext:\n{context}"
     
     
