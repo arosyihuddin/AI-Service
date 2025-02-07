@@ -1,6 +1,6 @@
 # app/services/document_service.py
 from fastapi import UploadFile, HTTPException
-from app.db.database_vector import deleteDocHandler, insert, get_db
+from app.db.database_vector import deleteDocHandler, insert, get_db_vector
 from app.schemas.document import DocumentCreateRequest, DocumentDeleteRequest, DocumentUpdateRequest, DocumentSearchRequest
 from app.utils.file_handler import PDFHandler
 from app.utils.logging import log
@@ -71,7 +71,7 @@ class DocumentService:
 
     @staticmethod
     async def get_document(material_id: int = None):
-        db = get_db()  # Ambil instance terbaru
+        db = get_db_vector()  # Ambil instance terbaru
         if db is None:
             raise HTTPException(500, "Database not initialized")
         try:
@@ -102,7 +102,7 @@ class DocumentService:
 
     @staticmethod
     async def search_document(request: DocumentSearchRequest):
-        db = get_db()
+        db = get_db_vector()
         if db is None:
             raise HTTPException(500, "Database not initialized")
         try:
@@ -120,7 +120,7 @@ class DocumentService:
         
     @staticmethod
     async def search_document_context(request: DocumentSearchRequest):
-        db = get_db()
+        db = get_db_vector()
         if db is None:
             raise HTTPException(500, "Database not initialized")
         try:
@@ -128,11 +128,12 @@ class DocumentService:
             context = "".join([f'-[SOURCE: {doc.metadata["course_name"]}, Modul: {doc.metadata["module"]}, Halaman: {doc.metadata["page"]}, Link: {doc.metadata["source"]}]\n{doc.page_content}\n' for doc in result])
             return context.strip()
         except Exception as e:
+            log.error("Search Document Context Error: ", e)
             raise HTTPException(500, f"Gagal mencari dokumen context: {str(e)}")
     
     @staticmethod
     async def get_material_context(request: DocumentSearchRequest):
-        db = get_db()
+        db = get_db_vector()
         if db is None:
             raise HTTPException(500, "Database not initialized")
         try:

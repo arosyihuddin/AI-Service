@@ -1,9 +1,10 @@
 # app/models/chat.py
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.sql import func
 from app.core.database import Base
 import uuid
+from datetime import datetime
 
 def generate_uuid():
     return str(uuid.uuid4())
@@ -12,8 +13,14 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    session_name = Column(String(100))
+    user_id = Column(Integer(), ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    
+    def soft_delete(self):
+        self.deleted_at = datetime.now()
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -22,5 +29,13 @@ class ChatMessage(Base):
     session_id = Column(String(36), ForeignKey('chat_sessions.id'), index=True)
     role = Column(String(20))  # system, user, assistant
     content = Column(LONGTEXT)
-    context = Column(LONGTEXT, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+class Users(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer(), primary_key=True)
+    user_name= Column(String(100))
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

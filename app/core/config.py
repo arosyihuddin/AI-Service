@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     
     k_quiz: int
     k_chat: int
+    
+    max_history: int
 
     class Config:
         env_file = ".env"

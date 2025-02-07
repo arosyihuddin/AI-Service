@@ -11,12 +11,13 @@ import os
 import asyncio
 import re
 from app.core.config import settings
+from app.core.database import get_db
 
 # Initialize the FAISS instance (singleton pattern)
 _db_instance = None  # Store the FAISS instance here
 folder_path = os.path.join(os.getcwd(), "app/db", "main_db")
 
-def get_db():
+def get_db_vector():
     """Return the FAISS instance if initialized, otherwise raise an error."""
     return _db_instance
 
@@ -32,8 +33,11 @@ text_splitter = RecursiveCharacterTextSplitter(
 async def init_db(app):
     """Load the FAISS database at app startup."""
     global _db_instance
-    log.info("Loading Database...")
+    log.info("Loading Database Vector...")
     _db_instance = FAISS.load_local(folder_path=folder_path, embeddings=embeddings, allow_dangerous_deserialization=True)
+    # log.info("Connecting MySQL Database...")
+    # get_db()
+    # log.info("MySQL Connected")
     log.info("Database successfully loaded.")
     yield
     # Cleanup resources (optional for FAISS but useful if there are other resources)
@@ -41,7 +45,7 @@ async def init_db(app):
 
 async def insert(file_path: str, material_id: int, source: str, course_name: str, module:str, description: str):
     """Insert document data into FAISS database."""
-    db = get_db()
+    db = get_db_vector()
     
     if not db:
         raise Exception("Database has not been initialized")
@@ -100,7 +104,7 @@ async def insert(file_path: str, material_id: int, source: str, course_name: str
 
 async def deleteDocHandler(material_id: int):
     """Delete document(s) from the FAISS database using material_id."""
-    db = get_db()
+    db = get_db_vector()
     if not db:
         return {"success": False, "message": "Database not initialized"}
     

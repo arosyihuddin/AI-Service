@@ -3,7 +3,7 @@ from app.schemas.quiz import QuizGenerateRequest
 from app.utils.rules import multiple_rules, descriptive_rules
 from app.utils.logging import log
 from fastapi import HTTPException
-from app.db.database_vector import get_db
+from app.db.database_vector import get_db_vector
 from app.services.llm_service import llm
 import requests
 from app.core.config import settings
@@ -20,7 +20,7 @@ class QuizService:
     @staticmethod
     async def generate_quiz(request: QuizGenerateRequest):
         """Handle the logic to generate a quiz"""
-        db = get_db() 
+        db = get_db_vector() 
         if db is None:
             raise HTTPException(500, "Database not initialized")
         

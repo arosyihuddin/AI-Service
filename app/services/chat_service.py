@@ -1,42 +1,44 @@
 # app/services/chat_service.py
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from app.core.config import settings
 from app.utils.logging import log
 from together import Together
-from app.models.chat import ChatSession, ChatMessage
+from app.models.chat import ChatSession, ChatMessage, Users
 from app.services.llm_service import llm
 import uuid
 from app.services.document_service import DocumentService
 from app.schemas.document import DocumentSearchRequest
 from app.utils.rules import PROMPT_CHAT_SYSTEM
-
+from datetime import datetime
 
 class ChatService:
     def __init__(self):
         self.client = Together(api_key=settings.together_api_key)
-        self.MAX_HISTORY = 2
+        self.MAX_HISTORY = settings.max_history
         self.system_message_content = PROMPT_CHAT_SYSTEM
     
-    async def process_chat(self, db: Session, user_input: str, material_ids: list[int], session_id: Optional[str] = None):
+    async def process_chat(self, db: Session, user_input: str, material_ids: list[int], user_id: int, user_name: str, session_id: Optional[str] = None):
         try:
             # Validasi atau generate session ID
-            if session_id and not self._validate_session(db, session_id):
+            if session_id and not await self._validate_session(db, session_id):
                 raise ValueError("Session ID tidak valid")
-                
-            session_id = session_id or self._create_new_session(db)
-            
+            session_name = ''    
+            if not session_id:
+                session_id, session_name = session_id or await self._create_new_session(user_input, user_id, user_name, db)
+            else:
+                session_name = await self._get_session_name(db, session_id)
             
             # Retrieval material
             req = DocumentSearchRequest(material_ids=material_ids, query=user_input, k=settings.k_chat)
             context = await DocumentService.search_document_context(req)
             
             # Simpan pesan user
-            self._save_message(db, session_id, "user", user_input)
+            await self._save_message(db, session_id, "user", user_input)
             
             # Dapatkan history
-            messages = self._get_messages(db, session_id)
-            # print(messages)
+            messages = await self._get_messages(db, session_id)
             
             # Merge Message With Context
             new_user_input = self._merge_messages_context(user_input, context)
@@ -48,21 +50,24 @@ class ChatService:
             ai_response = await self._generate_ai_response(merge_history_user_input)
             
             # Simpan response AI
-            self._save_message(db, session_id, "assistant", ai_response)
+            await self._save_message(db, session_id, "assistant", ai_response)
             
             # Bersihkan history jika perlu
-            self._trim_history(db, session_id)
-            
-            return ai_response, session_id
+            await self._trim_history(db, session_id)
+            return ai_response, session_id, session_name
             
         except Exception as e:
             db.rollback()
             log.error(f"Chat error: {str(e)}")
             raise
 
-    def get_session_history(self, db: Session, session_id: str) -> List[Dict]:
+    async def get_chat_history(self, db: Session, session_id: str) -> List[Dict]:
+        if session_id == '' and not self._validate_session(db, session_id):
+            raise ValueError("Session ID tidak valid")
+        
         messages = db.query(ChatMessage).filter(
-            ChatMessage.session_id == session_id, ChatMessage.role != "system"
+            ChatMessage.session_id == session_id, 
+            ChatMessage.role != "system"
         ).order_by(ChatMessage.created_at.asc()).all()
         
         return [{
@@ -71,64 +76,86 @@ class ChatService:
             "created_at": msg.created_at
         } for msg in messages]
     
+    async def get_session_history(self,db: Session,  user_id: int) -> List[str]:
+        sessions = db.query(ChatSession).filter(ChatSession.user_id == user_id, ChatSession.deleted_at == None).order_by(ChatSession.created_at.desc()).all()
+        
+        return [ session for session in sessions]
     async def delete_session(self, db: Session, session_id: str):
         # Validasi session ID
-        if session_id and not self._validate_session(db, session_id):
+        if session_id and not await self._validate_session(db, session_id):
             raise ValueError("Session ID tidak valid")
         
-        db.query(ChatMessage).filter_by(session_id=session_id).delete()
-        db.query(ChatSession).filter_by(id=session_id).delete()
+        db.query(ChatMessage).filter_by(session_id=session_id).update({"deleted_at": datetime.now()})
+        db.query(ChatSession).filter_by(id=session_id).first().soft_delete()
         db.commit()
 
-    def _validate_session(self, db: Session, session_id: str) -> bool:
-        return db.query(ChatSession).filter_by(id=session_id).first() is not None
+    async def _validate_session(self, db: Session, session_id: str) -> bool:
+        return db.query(ChatSession).filter_by(id=session_id, deleted_at=None).first() is not None
+    
+    async def _validate_user(self, db: Session, user_id: int) -> bool:
+        return db.query(Users).filter_by(id=user_id).first() is not None
 
-    def _create_new_session(self, db: Session) -> str:
-        new_session = ChatSession(id=str(uuid.uuid4()))
+    async def _create_new_session(self, session_name: str, user_id: int, user_name: str,  db: Session) -> str:
+        if not await self._validate_user(db, user_id):
+            db.add(Users(id=user_id, user_name=user_name))
+            db.commit()
+        new_session_name = ' '.join(i for i in session_name.split()[:3])
+        new_session = ChatSession(id=str(uuid.uuid4()), user_id=user_id, session_name=new_session_name)
         db.add(new_session)
         db.commit()
         
         # Tambahkan pesan sistem
-        self._save_message(db, new_session.id, "system", self.system_message_content, self.system_message_content)
-        return new_session.id
+        await self._save_message(db, new_session.id, "system", self.system_message_content)
+        return new_session.id, new_session_name
 
-    def _save_message(self, db: Session, session_id: str, role: str, content: str, context: str = None):
+    async def _save_message(self, db: Session, session_id: str, role: str, content: str, context: str = None):
         new_message = ChatMessage(
             session_id=session_id,
             role=role,
-            content=content,
-            context=context
+            content=content
         )
         db.add(new_message)
         db.commit()
         db.refresh(new_message)
 
-    def _get_messages(self, db: Session, session_id: str) -> List[Dict]:
+    async def _get_messages(self, db: Session, session_id: str) -> List[Dict]:
         messages = db.query(ChatMessage).filter(
-            ChatMessage.session_id == session_id
+            ChatMessage.session_id == session_id,
+            ChatMessage.deleted_at == None
         ).order_by(ChatMessage.created_at.asc()).all()
         
         return [{
             "role": msg.role,
             "content": msg.content
         } for msg in messages]
+    
+    async def _get_session_name(self, db: Session, session_id: str) -> str:
+        session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        if not session:
+            raise ValueError("Invalid session ID")
+        return session.session_name
 
-    def _trim_history(self, db: Session, session_id: str):
+    async def _trim_history(self, db: Session, session_id: str):
         # Hitung total messages
         total_messages = db.query(ChatMessage).filter_by(session_id=session_id).count()
         
         if total_messages > self.MAX_HISTORY * 2 + 1:
             # Dapatkan ID message tertua yang perlu dipertahankan
-            keep_messages = db.query(ChatMessage.id).filter_by(session_id=session_id)\
+            keep_messages = db.query(ChatMessage.id).filter_by(
+                session_id=session_id,
+                role = "system")\
                 .order_by(ChatMessage.created_at.desc())\
                 .limit(self.MAX_HISTORY * 2 + 1)\
                 .subquery()
                 
+            keep_messages_select = select(keep_messages.c.id)
+            
             # Hapus message yang lebih lama
             db.query(ChatMessage).filter(
                 ChatMessage.session_id == session_id,
-                ~ChatMessage.id.in_(keep_messages)
-            ).delete(synchronize_session=False)
+                ~ChatMessage.id.in_(keep_messages_select)
+            ).update({"deleted_at": datetime.now()}, synchronize_session=False)
+            # ).delete(synchronize_session=False)
             
             db.commit()
 
@@ -142,4 +169,4 @@ class ChatService:
             raise RuntimeError("Gagal menghasilkan respons dari AI")
     
     def _merge_messages_context(self, messages: str, context: str) -> str:
-        return f"Question: {messages}\nMaterial Context: {context}"
+        return f"Jawab pertanyaan ini : {messages}\nGunakan hanya context di bawah ini:\n{context}\nFormat referensi: [Dikutip dari: {{course}}, Modul {{module}}, Halaman {{page}}]({{link}})"
