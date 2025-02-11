@@ -1,4 +1,3 @@
-# app/db/database.py
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores.faiss import FAISS
@@ -11,14 +10,17 @@ import os
 import asyncio
 import re
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import async_session_maker
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+from sqlalchemy import text
 
-# Initialize the FAISS instance (singleton pattern)
-_db_instance = None  # Store the FAISS instance here
-folder_path = os.path.join(os.getcwd(), "app/db", "main_db")
+_db_instance = None  
+folder_path = os.path.join(os.getcwd(), "app/db", settings.db_vector_path)
 
 def get_db_vector():
-    """Return the FAISS instance if initialized, otherwise raise an error."""
+    if _db_instance is None:
+        raise RuntimeError("FAISS database has not been initialized.")
     return _db_instance
 
 # Define the text splitter for chunking large text documents
@@ -29,19 +31,46 @@ text_splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", " ", ""],  # Prioritize natural breaks like paragraph breaks
 )
 
+executor = ThreadPoolExecutor()
+
 @asynccontextmanager
 async def init_db(app):
-    """Load the FAISS database at app startup."""
     global _db_instance
-    log.info("Loading Database Vector...")
-    _db_instance = FAISS.load_local(folder_path=folder_path, embeddings=embeddings, allow_dangerous_deserialization=True)
-    # log.info("Connecting MySQL Database...")
-    # get_db()
-    # log.info("MySQL Connected")
-    log.info("Database successfully loaded.")
-    yield
-    # Cleanup resources (optional for FAISS but useful if there are other resources)
-    log.info("Shutting down database.")
+    log.info("Initializing databases...")
+    
+    # Step 1: Load FAISS vector database asynchronously
+    try:
+        log.info("Loading FAISS vector database...")
+        loop = asyncio.get_event_loop()
+        _db_instance = await loop.run_in_executor(
+            executor,
+            lambda: FAISS.load_local(
+                folder_path=folder_path,
+                embeddings=embeddings,
+                allow_dangerous_deserialization=True
+            )
+        )
+        log.info("FAISS vector database loaded successfully.")
+        
+    except Exception as e:
+        log.error(f"Failed to load FAISS vector database: {str(e)}")
+        raise RuntimeError("Failed to initialize FAISS database.") from e
+    
+    # Step 2: Test MySQL database connection
+    try:
+        log.info("Connecting to MySQL database...")
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        log.info("MySQL database connected successfully.")
+    except Exception as e:
+        log.error(f"Failed to connect to MySQL database: {str(e)}")
+        raise RuntimeError("Failed to connect to MySQL database.") from e
+
+    yield  # Keep the application running
+
+    ## Shutdown resources
+    log.info("Shutting down databases.")
+    executor.shutdown(wait=True)
 
 async def insert(file_path: str, material_id: int, source: str, course_name: str, module:str, description: str):
     """Insert document data into FAISS database."""

@@ -1,4 +1,3 @@
-# app/api/routers/doc_router.py
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.schemas.document import (
     DocumentCreateRequest,

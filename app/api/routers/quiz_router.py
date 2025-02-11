@@ -1,4 +1,3 @@
-# app/api/routers/quiz_router.py
 from fastapi import APIRouter, HTTPException
 from app.schemas.quiz import QuizGenerateRequest
 from app.services.quiz_service import QuizService

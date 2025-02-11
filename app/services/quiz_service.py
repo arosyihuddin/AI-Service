@@ -1,15 +1,19 @@
-# app/services/quiz_service.py
 from app.schemas.quiz import QuizGenerateRequest
 from app.utils.rules import multiple_rules, descriptive_rules
 from app.utils.logging import log
 from fastapi import HTTPException
 from app.db.database_vector import get_db_vector
 from app.services.llm_service import llm
-import requests
 from app.core.config import settings
 from app.services.document_service import DocumentService
 from app.schemas.document import DocumentSearchRequest
+import httpx
 import json
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+
+# Buat executor global untuk parsing JSON
+executor = ThreadPoolExecutor()
 
 QUESTION_RULES = {
     "multiple": multiple_rules,
@@ -44,29 +48,40 @@ class QuizService:
         # Mengirimkan permintaan ke LLM model untuk menghasilkan soal
         try:
             log.info(f"Use Model: {settings.llm_model}")
-            response_model = llm(rules, settings.llm_model)
+            response_model = await llm(rules, settings.llm_model)
             headers = {
                 "x-api-key": settings.lms_x_api_key,
                 "Content-Type": "application/json",
             }
 
             # Mengirimkan POST request ke endpoint dengan body JSON
-            response = requests.post(settings.lms_url_api, data=response_model, headers=headers).json()
+            response = await QuizService._send_lms_request(settings.lms_url_api, response_model, headers)
             
             # Memeriksa status respons
             if response.get("status") == 200:
                 if request.show_quiz:
                     try:
-                        quiz = json.loads(response_model)
+                        quiz = await QuizService._parse_json_async(response_model)
                     except Exception as e:
                         log.error(f"Failed to parse JSON for Show Quiz: {str(e)}")
+                        raise HTTPException(500, "Failed to parse quiz data")
                         raise e
                     return {"success":True, "status":200, "message":"Success Generate Quiz", "quiz": quiz["questions"]}
                 else:
                     return {"success":True, "status":200, "message":"Success Generate Quiz"}
             else:
+                log.error(f"Failed to save quiz: {response}")
                 raise HTTPException(status_code=400, detail="Failed Save Quiz")
         except HTTPException as e:
             raise e
         except Exception as e:
             raise HTTPException(status_code=400, detail="Failed Generate Quiz")
+    
+    async def _send_lms_request(url, data, headers):
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, data=data, headers=headers)
+            return response.json()
+    
+    async def _parse_json_async(json_string):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(executor, lambda: json.loads(json_string))

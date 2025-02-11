@@ -1,4 +1,3 @@
-# app/models/chat.py
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
 from sqlalchemy.dialects.mysql import LONGTEXT, JSON
 from sqlalchemy.sql import func
@@ -19,9 +18,6 @@ class ChatSession(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-    
-    def soft_delete(self):
-        self.deleted_at = datetime.now()
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"

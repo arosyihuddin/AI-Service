@@ -1,4 +1,3 @@
-# app/services/document_service.py
 from fastapi import UploadFile, HTTPException
 from app.db.database_vector import deleteDocHandler, insert, get_db_vector
 from app.schemas.document import DocumentCreateRequest, DocumentDeleteRequest, DocumentUpdateRequest, DocumentSearchRequest

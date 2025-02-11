@@ -1,4 +1,3 @@
-# app/api/routers/system_router.py
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 

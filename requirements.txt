@@ -10,5 +10,5 @@ langchain_huggingface
 faiss-cpu
 python-multipart
 pypdf
-mysql-connector-python
+asyncmy
 alembic

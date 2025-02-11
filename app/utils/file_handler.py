@@ -1,4 +1,3 @@
-# app/utils/file_handler.py
 from fastapi import UploadFile
 import shutil
 import os
