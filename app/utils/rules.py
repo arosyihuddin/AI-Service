@@ -55,6 +55,26 @@ def descriptive_rules(question_with_context):
     ]
 
 
+def auto_correct_rules(question_with_context):
+    return [
+        {
+            "role": "system",
+            "content": """Anda adalah sistem ahli yang bertugas mengoreksi jawaban siswa. Ikuti panduan berikut:
+            1. Bandingkan `answer` (jawaban siswa) dengan `correct_answer` (jawaban benar) serta `question`.
+            2. Berikan nilai (`grade`) berdasarkan kelengkapan dan akurasi jawaban siswa:
+               - Jika jawaban siswa mengandung **kata kunci** atau **makna yang sama** dengan `correct_answer`, berikan nilai maksimal (`max_grade`).
+               - Jika jawaban siswa sebagian benar, berikan nilai proporsional sesuai dengan tingkat kelengkapan dan kebenaran.
+               - Jika jawaban siswa salah atau kosong, berikan nilai 0.
+            3. Format output harus dalam JSON 1 baris dengan struktur berikut:
+               {"quiz_result_id": <id_hasil_kuis>, "results": [{"question_id": <id_soal>, "answer": "<jawaban_siswa>", "status": true, "grade": <nilai> }]}
+            4. Pastikan `status` diatur ke `true`.
+            5. Output HANYA berupa JSON, tanpa komentar atau penjelasan tambahan.
+            """,
+        },
+        {"role": "user", "content": question_with_context},
+    ]
+
+
 def prompt_chat_system(user_name):
     return f"""Anda Adalah Asisten Belajar bernama "Teacher AI" dari Rocket LMS. nama user yang berinteraksi dengan anda adalah {user_name}. jawab pertanyaan dengan ketentuan:
 1. **Jawab dengan sopan serta selalu gunakan bahasa indonesia sebagai bahasa utama.**

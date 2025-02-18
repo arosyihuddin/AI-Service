@@ -1,9 +1,9 @@
-from app.schemas.quiz import QuizGenerateRequest
-from app.utils.rules import multiple_rules, descriptive_rules
+from app.schemas.quiz import QuizGenerateRequest, AutoCorrectRequest
+from app.utils.rules import multiple_rules, descriptive_rules, auto_correct_rules
 from app.utils.logging import log
 from fastapi import HTTPException
 from app.db.database_vector import get_db_vector
-from app.services.llm_service import llm
+from app.services.llm_service import llm, llm_autocorrect
 from app.core.config import settings
 from app.services.document_service import DocumentService
 from app.schemas.document import DocumentSearchRequest
@@ -52,15 +52,9 @@ class QuizService:
         try:
             log.warn(f"Use Model: {settings.quiz_model}")
             response_model = await llm(rules, settings.quiz_model)
-            headers = {
-                "x-api-key": settings.lms_x_api_key,
-                "Content-Type": "application/json",
-            }
 
             # Mengirimkan POST request ke endpoint dengan body JSON
-            response = await QuizService._send_lms_request(
-                settings.lms_url_api, response_model, headers
-            )
+            response = await QuizService._save_quiz(response_model)
 
             # Memeriksa status respons
             if response.get("status") == 200:
@@ -90,11 +84,64 @@ class QuizService:
         except Exception as e:
             raise HTTPException(status_code=400, detail="Failed Generate Quiz")
 
-    async def _send_lms_request(url, data, headers):
+    async def _save_quiz(data):
+        headers = {
+            "x-api-key": settings.lms_x_api_key,
+            "Content-Type": "application/json",
+        }
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, data=data, headers=headers)
+            response = await client.post(
+                settings.lms_url_api + "/generate", data=data, headers=headers
+            )
             return response.json()
 
     async def _parse_json_async(json_string):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(executor, lambda: json.loads(json_string))
+
+    async def auto_correct(request: AutoCorrectRequest):
+        db = get_db_vector()
+        if db is None:
+            raise HTTPException(500, "Database not initialized")
+
+        dedscriptive = []
+        multiple = []
+
+        for i in request.answers:
+            if i["correct_answer"] != None:
+                dedscriptive.append(
+                    {
+                        "question_id": i["question_id"],
+                        "correct_answer": i["correct_answer"],
+                        "answer": i["user_answer"],
+                        "max_grade": i["max_grade"],
+                        "status": i["status"],
+                    }
+                )
+            else:
+                multiple.append(
+                    {
+                        "question_id": i["question_id"],
+                        "answer": i["user_answer"],
+                        "grade": i["max_grade"],
+                        "status": i["status"],
+                    }
+                )
+        try:
+            query = f"Quiz Result ID: {request.quiz_result_id}, Jawaban: {dedscriptive}"
+            query_rules = auto_correct_rules(query)
+            result = await llm_autocorrect(query_rules, settings.autocorrect_model)
+            result_parse = json.loads(result)
+
+            if len(multiple) > 0:
+                for i in multiple:
+                    result_parse["results"].append(i)
+
+            return {
+                "success": True,
+                "status": 200,
+                "data": result_parse,
+            }
+        except Exception as e:
+            log.error(f"Failed process auto correct: {str(e)}")
+            raise HTTPException(status_code=400, detail="Failed Process Auto Correct")

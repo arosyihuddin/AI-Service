@@ -3,7 +3,7 @@ from app.core.config import settings
 from fastapi import HTTPException
 from together import AsyncTogether
 from ollama import AsyncClient
-from openai import AsyncOpenAI, OpenAIError
+from openai import AsyncOpenAI
 
 ollamaClient = AsyncClient()
 togetgerClient = AsyncTogether(api_key=settings.together_api_key)

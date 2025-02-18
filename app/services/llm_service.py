@@ -19,6 +19,7 @@ from app.services.models.model_quiz import (
     openrouter_deepseek_quiz,
     openrouter_deepseek_distill_llama_quiz,
 )
+from app.services.models.model_autocorrect import together_llama_autocorrect
 
 embeddings = HuggingFaceEmbeddings(
     model_name="LazarusNLP/all-indo-e5-small-v4",  # Provide the pre-trained model's path
@@ -34,61 +35,68 @@ async def llm_chat(messages, model) -> AsyncGenerator[str, None]:
     if model == "llama":
         async for chunk in together_llama(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
     elif model == "ollama-deepseek":
         async for chunk in ollama_deepseek(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
     elif model == "openai":
         async for chunk in openai(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
     if model == "deepseek-together":
         async for chunk in together_deepseek(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
     elif model == "deepseek-openrouter-distill-llama":
         async for chunk in openrouter_deepseek_distil_llama(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
     elif model == "deepseek-openrouter":
         async for chunk in openrouter_deepseek(messages):
             yield chunk
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
 
 
 async def llm(messages, model):
     if model == "llama":
         result = await together_llama_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
         return result
 
     elif model == "ollama-deepseek":
         result = await ollama_deepseek_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
         return result
 
     elif model == "openai":
         result = await openai_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
         return result
 
     elif model == "deepseek-openrouter":
         result = await openrouter_deepseek_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
         return result
 
     elif model == "deepseek-openrouter-distill-llama":
         result = await openrouter_deepseek_distill_llama_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
         return result
 
     elif model == "deepseek-together":
         result = await together_deepseek_quiz(messages)
-        log.info("Chat completion done")
+        log.warn("Chat completion done")
+        return result
+
+
+async def llm_autocorrect(messages, model):
+    if model == "llama":
+        result = await together_llama_autocorrect(messages)
+        log.warn("Chat completion done")
         return result

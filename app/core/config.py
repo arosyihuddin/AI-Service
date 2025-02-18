@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 200
     quiz_model: str = "llama"
     chat_model: str = "openai"
+    autocorrect_model: str = "llama"
 
     # MODEL API Settings
     together_api_key: str
