@@ -50,7 +50,6 @@ class QuizService:
 
         # Mengirimkan permintaan ke LLM model untuk menghasilkan soal
         try:
-            log.warn(f"Use Model: {settings.quiz_model}")
             response_model = await llm(rules, settings.quiz_model)
 
             # Mengirimkan POST request ke endpoint dengan body JSON
@@ -104,12 +103,15 @@ class QuizService:
         if db is None:
             raise HTTPException(500, "Database not initialized")
 
-        dedscriptive = []
+        descriptive = []
         multiple = []
-
+        temp = []
         for i in request.answers:
+            if len(temp) >= settings.k_iter_autocorrect:
+                descriptive.append(temp)
+                temp = []
             if i["correct_answer"] != None:
-                dedscriptive.append(
+                temp.append(
                     {
                         "question_id": i["question_id"],
                         "correct_answer": i["correct_answer"],
@@ -127,20 +129,23 @@ class QuizService:
                         "status": i["status"],
                     }
                 )
+        descriptive.append(temp)
+
         try:
-            query = f"Quiz Result ID: {request.quiz_result_id}, Jawaban: {dedscriptive}"
-            query_rules = auto_correct_rules(query)
-            result = await llm_autocorrect(query_rules, settings.autocorrect_model)
-            result_parse = json.loads(result)
+            final_result = {"quiz_result_id": request.quiz_result_id, "results": []}
+            for i in descriptive:
+                query_rules = auto_correct_rules(str(i))
+                result = await llm_autocorrect(query_rules, settings.autocorrect_model)
+                final_result["results"].extend(json.loads(result))
 
             if len(multiple) > 0:
                 for i in multiple:
-                    result_parse["results"].append(i)
+                    final_result["results"].append(i)
 
             return {
                 "success": True,
                 "status": 200,
-                "data": result_parse,
+                "data": final_result,
             }
         except Exception as e:
             log.error(f"Failed process auto correct: {str(e)}")

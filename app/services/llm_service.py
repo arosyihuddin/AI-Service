@@ -19,7 +19,12 @@ from app.services.models.model_quiz import (
     openrouter_deepseek_quiz,
     openrouter_deepseek_distill_llama_quiz,
 )
-from app.services.models.model_autocorrect import together_llama_autocorrect
+from app.services.models.model_autocorrect import (
+    together_llama_autocorrect,
+    openai_autocorrect,
+    together_deepseek_autocorrect,
+    ollama_deepseek_autocorrect,
+)
 
 embeddings = HuggingFaceEmbeddings(
     model_name="LazarusNLP/all-indo-e5-small-v4",  # Provide the pre-trained model's path
@@ -32,6 +37,7 @@ executor = ThreadPoolExecutor()
 
 
 async def llm_chat(messages, model) -> AsyncGenerator[str, None]:
+    log.warn("Use Model: " + model)
     if model == "llama":
         async for chunk in together_llama(messages):
             yield chunk
@@ -64,6 +70,7 @@ async def llm_chat(messages, model) -> AsyncGenerator[str, None]:
 
 
 async def llm(messages, model):
+    log.warn("Use Model: " + model)
     if model == "llama":
         result = await together_llama_quiz(messages)
         log.warn("Chat completion done")
@@ -96,7 +103,20 @@ async def llm(messages, model):
 
 
 async def llm_autocorrect(messages, model):
+    log.warn("Use Model: " + model)
     if model == "llama":
         result = await together_llama_autocorrect(messages)
+        log.warn("Chat completion done")
+        return result
+    elif model == "deepseek-together":
+        result = await together_deepseek_autocorrect(messages)
+        log.warn("Chat completion done")
+        return result
+    elif model == "openai":
+        result = await openai_autocorrect(messages)
+        log.warn("Chat completion done")
+        return result
+    elif model == "ollama-deepseek":
+        result = await ollama_deepseek_autocorrect(messages)
         log.warn("Chat completion done")
         return result

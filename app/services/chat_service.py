@@ -243,7 +243,6 @@ class ChatService:
         self, messages: List[Dict]
     ) -> AsyncGenerator[str, None]:
         try:
-            log.info(f"Use Model: {settings.chat_model}")
             async for chuck in llm_chat(messages, settings.chat_model):
                 yield chuck
         except Exception as e:

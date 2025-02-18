@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     k_quiz: int
     k_chat: int
+    k_iter_autocorrect: int
 
     max_history: int
 

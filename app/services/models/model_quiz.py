@@ -1,4 +1,3 @@
-from app.utils.logging import log
 from app.core.config import settings
 from fastapi import HTTPException
 from together import AsyncTogether

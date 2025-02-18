@@ -60,19 +60,50 @@ def auto_correct_rules(question_with_context):
         {
             "role": "system",
             "content": """Anda adalah sistem ahli yang bertugas mengoreksi jawaban siswa. Ikuti panduan berikut:
-            1. Bandingkan `answer` (jawaban siswa) dengan `correct_answer` (jawaban benar) serta `question`.
-            2. Berikan nilai (`grade`) berdasarkan kelengkapan dan akurasi jawaban siswa:
-               - Jika jawaban siswa mengandung **kata kunci** atau **makna yang sama** dengan `correct_answer`, berikan nilai maksimal (`max_grade`).
-               - Jika jawaban siswa sebagian benar, berikan nilai proporsional sesuai dengan tingkat kelengkapan dan kebenaran.
-               - Jika jawaban siswa salah atau kosong, berikan nilai 0.
-            3. Format output harus dalam JSON 1 baris dengan struktur berikut:
-               {"quiz_result_id": <id_hasil_kuis>, "results": [{"question_id": <id_soal>, "answer": "<jawaban_siswa>", "status": true, "grade": <nilai> }]}
-            4. Pastikan `status` diatur ke `true`.
-            5. Output HANYA berupa JSON, tanpa komentar atau penjelasan tambahan.
+            1. Bandingkan `answer` (jawaban siswa) dengan `question` dan `correct_answer`.
+            2. Berikan nilai (`grade`) berdasarkan:
+               - Nilai maksimal (`max_grade`) jika jawaban sepenuhnya benar, mengandung makna yang sama dengan `correct_answer`.
+               - Nilai proporsional (40-60) jika jawaban hanya mencakup sebagian makna yang relevan dengan `correct_answer`.
+               - Nilai minimal (0-20) jika jawaban tidak relevan atau keliru.
+            3. Pertimbangkan prioritas penilaian berikut:
+               a. **Relevansi dengan pertanyaan** adalah yang paling utama.
+               b. **Kesamaan dengan kata kunci `correct_answer`** penting untuk menentukan tingkat kebenaran.
+               c. **Kelengkapan jawaban** (apakah jawaban menjelaskan sepenuhnya atau hanya sebagian).
+            4. Penilaian berdasarkan:
+               - Jawaban yang relevan dengan pertanyaan akan mendapatkan skor lebih tinggi.
+               - Penggunaan kata kunci atau konsep yang benar akan memberikan nilai lebih tinggi.
+            5. Format output harus dalam JSON 1 baris:
+               [{"question_id":<id>, "answer":"<jawaban>", "status":<bool>, "grade":<nilai>}]
+            6. Pastikan `status` diatur ke `true` untuk semua jawaban.
+            7. Output HANYA berupa JSON, tanpa komentar atau penjelasan tambahan.
             """,
         },
         {"role": "user", "content": question_with_context},
     ]
+
+
+# def auto_correct_rules(question_with_context):
+#     return [
+#         {
+#             "role": "system",
+#             "content": """Anda adalah sistem ahli yang bertugas mengoreksi jawaban siswa. Ikuti panduan berikut:
+#             1. Bandingkan `answer` (jawaban siswa) dengan `question` dan `correct_answer`.
+#             2. Berikan nilai (`grade`) berdasarkan:
+#                - Nilai maksimal (`max_grade`) jika jawaban mengandung makna yang sama dengan `correct_answer`.
+#                - Nilai proporsional (40-60) jika jawaban mengandung sebagian makna yang sama dengan `correct_answer`.
+#                - Nilai 0-20 jika jawaban tidak relevan/keliru.
+#             3. Prioritas penilaian:
+#                a. Relevansi dengan pertanyaan (utama)
+#                b. Kesesuaian dengan kata kunci `correct_answer`
+#                c. Kelengkapan jawaban
+#             4. Format output harus dalam JSON 1 baris:
+#                {"quiz_result_id":<id>, "results":[{"question_id":<id>, "answer":"<jawaban>", "status":<bool>, "grade":<nilai>}]}
+#             4. Pastikan `status` diatur ke `true`.
+#             5. Output HANYA berupa JSON, tanpa komentar atau penjelasan tambahan.
+#             """,
+#         },
+#         {"role": "user", "content": question_with_context},
+#     ]
 
 
 def prompt_chat_system(user_name):
