@@ -81,9 +81,11 @@ class QuizService:
         except HTTPException as e:
             raise e
         except Exception as e:
+            log.error(f"Failed generate quiz: {str(e)}")
             raise HTTPException(status_code=400, detail="Failed Generate Quiz")
 
-    async def _save_quiz(self, data):
+    @staticmethod
+    async def _save_quiz(data):
         headers = {
             "x-api-key": settings.lms_x_api_key,
             "Content-Type": "application/json",
@@ -94,11 +96,13 @@ class QuizService:
             )
             return response.json()
 
-    async def _parse_json_async(self, json_string):
+    @staticmethod
+    async def _parse_json_async(json_string):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(executor, lambda: json.loads(json_string))
 
-    async def auto_correct(self, request: AutoCorrectRequest):
+    @staticmethod
+    async def auto_correct(request: AutoCorrectRequest):
         db = get_db_vector()
         if db is None:
             raise HTTPException(500, "Database not initialized")
