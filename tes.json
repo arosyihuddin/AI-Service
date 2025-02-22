@@ -1,0 +1,13 @@
+{
+  "lang": "id",
+  "quiz_id": 2,
+  "questions": [
+    {
+      "title": "Jelaskan mekanisme distribusi Floating IP dalam sistem cloud computing!",
+      "type": "descriptive",
+      "descriptive_correct_answer": "Floating IP di cloud computing memungkinkan alamat IP publik dipindahkan antar instance secara dinamis. Mekanismenya melibatkan: 1. Alokasi IP dari pool provider 2. Asosiasi ke instance target 3. Update tabel routing 4. Propagasi DNS",
+      "grade": 25,
+      "answers": []
+    }
+  ]
+}
